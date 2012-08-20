@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+     <link rel="stylesheet" href="js/openlayers/theme/default/style.css" type="text/css">  
+  </head>
+  <body>
+    <p>Enter Address, geocode by
+    	<INPUT TYPE=RADIO NAME="radio" VALUE="google" checked>Google
+		<INPUT TYPE=RADIO NAME="radio" VALUE="mapquest">Nominatim (via Mapquest)
+    </p>
+    <div>
+    <input id="address" type="text" style="width:500px"/> <h2><span id='result'>&nbsp;</span></h2>
+    </div>
+   <div><h2>mapbox static API map</div>
+    <div id='mapboxImage' style='width:400px;height:300px;'>
+    <img style='width:400px;height:300px;' src='http://api.tiles.mapbox.com/v3/fcc.map-rons6wgv/-98.13020993607232,38.30717372397684,4/400x300.png' />
+    </div>
+    <div><h2>dynamic map</div>
+    <div id='map' style='width:400px;height:300px;' />
+    
+    <script src="js/libs/jquery-1.7.1.min.js"></script> 
+     <script src="js/openlayers/OpenLayers.js"></script>
+    <script type="text/javascript" src="http://maps.google.com/maps/api/js?v=3&amp;sensor=false"></script>
+    <script type="text/javascript">
+   		 var geocodeEngine="google"; 		 
+   		var geocoder = new google.maps.Geocoder();
+   		var lon,lat;
+   		var gResultType={
+   			    "street_address": ["indicates a precise street address","16"],
+   			    "route": ["indicates a named route (such as 'US 101')", "15"],
+   			    "intersection": ["indicates a major intersection, usually of two major roads","16"],
+				"political": ["indicates a political entity. Usually, this type indicates a polygon of some civil administration","12"],
+   			    "country": ["indicates the national political entity","5"],
+   			    "administrative_area_level_1": ["indicates State","7"],
+   			    "administrative_area_level_2":["indicates County","9"],
+   			    "administrative_area_level_3": ["indicates City","10"],
+   			    "colloquial_area": ["indicates a commonly-used alternative name for the entity","12"],
+   			    "locality":["indicates an incorporated city or town","13"],
+   			    "sublocality": ["indicates an place","14"],
+   			    "neighborhood": ["indicates a named neighborhood","16"],
+   			    "premise": ["indicates a named location, usually a building or collection of buildings with a common name","16"],
+   			    "subpremise": ["indicates a first-order entity below a named location, usually a singular building within a collection of buildings with a common name","16"],
+   			    "postal_code": ["indicates a postal code","12"],
+   			    "natural_feature": ["indicates a prominent natural feature","16"],
+   			    "airport": ["indicates an airport","16"],
+   			    "park":["indicates a named park","15"],
+   			    "point_of_interest":["indicates a POI","16"],
+   			    "establishment":["establishment","16"],
+   			    "museum":["museum","16"]};
+   		var mResultType={"maritime":["maritime","5"],
+   							"state":["state","7"],
+   							"county":["county","9"],
+   							"city":["city","10"],
+   							"administrative":["administrative","7"],
+   							"postcode":["postcode","12"],
+   							"town":["town","11"],
+   							"locality":["locality","14"],
+   							"residential":["residential","16"],
+   							"house":["house","16"]};
+   		
+   		var layers=[];
+   		var fullExtent = new OpenLayers.Bounds(
+   		        -17107255, 2910721, -4740355, 6335100
+   		    );
+   		var map = new OpenLayers.Map({
+   		    div: "map",
+   		    projection: "EPSG:900913",
+   		    displayProjection: "EPSG:4326",
+   		    numZoomLevels:18,
+   		    maxExtent: new OpenLayers.Bounds(-2.003750834E7,-2.003750834E7,2.003750834E7,2.003750834E7),
+   			units: "meters",
+   			allOverlays:true
+   		});
+
+   		var mapboxTerrain = new OpenLayers.Layer.XYZ(
+   			    "Mapbox Terrain map",
+   			    [
+   			     //"https://dnv9my2eseobd.cloudfront.net/v3/fcc.map-rons6wgv/${z}/${x}/${y}.png"
+   			     "https://a.tiles.mapbox.com/v3/fcc.map-rons6wgv/${z}/${x}/${y}.png",
+   			    "https://b.tiles.mapbox.com/v3/fcc.map-rons6wgv/${z}/${x}/${y}.png",
+   			     "https://c.tiles.mapbox.com/v3/fcc.map-rons6wgv/${z}/${x}/${y}.png",
+   			     "https://d.tiles.mapbox.com/v3/fcc.map-rons6wgv/${z}/${x}/${y}.png"
+   			    ], {
+  			        attribution: "Data &copy; <a href='http://www.openstreetmap.org/'>OpenStreetMap</a> " +
+  		            "and contributors, CC-BY-SA",
+   			        sphericalMercator: true,
+   			        wrapDateLine: true,
+   			        numZoomLevels:17,
+   			        transitionEffect: "resize",
+   			        buffer: 1
+   			    }
+   			);
+   		layers.push(mapboxTerrain);
+
+   		var locationStyle = new OpenLayers.StyleMap({
+   		    "default": new OpenLayers.Style({
+   		        externalGraphic: "http://api.tiles.mapbox.com/v3/marker/pin-m-x+48C.png",
+   		       // backgroundGraphic: "img/icon-map-shadow.png",
+   		        backgroundXOffset: 0,
+   		        backgroundYOffset: -7,
+   		        graphicZIndex: 11,
+   		        backgroundGraphicZIndex: 10,
+   				pointRadius: 36
+   		    }),
+   			"temporary": new OpenLayers.Style({
+   				pointRadius: 24				
+   			})
+   		});
+   		       
+   		var locationLayer = new OpenLayers.Layer.Vector("location", {
+   			styleMap: locationStyle,
+   			rendererOptions: {zIndexing: true}
+   		});
+
+   		var boundStyle = new OpenLayers.StyleMap({
+   		    "default": new OpenLayers.Style({
+   		    	strokeColor: "#FFAEDB",
+   				strokeOpacity: 1,
+   		    	strokeWidth: 2,
+   				fillColor: "#FFAEDB",
+   				fillOpacity: 0.3
+   		    }),
+   		    "temporary": new OpenLayers.Style({
+   		        strokeColor: "#F09100",
+   				strokeWidth:2
+   		    })
+   		});
+   		var boundLayer= new OpenLayers.Layer.Vector("bound",{
+   				styleMap: boundStyle,					
+   				displayInLayerSwitcher:true
+   			});
+
+   		layers.push(boundLayer);
+   		layers.push(locationLayer);
+   		map.addLayers(layers);
+   		map.addControl(new OpenLayers.Control.Attribution());
+   		map.addControl(new OpenLayers.Control.Navigation());
+   		map.zoomToExtent(fullExtent);
+   		map.zoomTo(4);
+   		
+   		function showMapBoxImage(lon,lat,zoom){
+   			console.log(lon,lat,zoom);
+   			var src="<img src='http://api.tiles.mapbox.com/v3/fcc.map-rons6wgv/pin-m-x+48C("+
+   					lon + "," + lat + ")/" + lon + "," + lat + "," +zoom + "/400x300.png'/>";
+   					console.log(src);
+   			$("#mapboxImage").html('');
+   			$("#mapboxImage").html(src);  		
+   		}
+   		
+   		function showDynamicMap(lon,lat,boundArray){
+   			locationLayer.removeAllFeatures();
+   			boundLayer.removeAllFeatures();
+   			var pointList=[];
+   			var locationFeature = new OpenLayers.Feature.Vector(
+   			    	new OpenLayers.Geometry.Point(
+   			    			lon,
+   			    			lat
+   			    	).transform(map.displayProjection, map.projection), {}
+   				);
+   			locationLayer.addFeatures([locationFeature]);
+   			if (boundArray.length!=0){
+   				var lb = new OpenLayers.Geometry.Point(boundArray[2], boundArray[0]);
+   	   		 	var lu = new OpenLayers.Geometry.Point(boundArray[2], boundArray[1]);
+   	   		 	var rb = new OpenLayers.Geometry.Point(boundArray[3], boundArray[0]);
+   	   		 	var ru = new OpenLayers.Geometry.Point(boundArray[3], boundArray[1]);
+   	 	   		pointList.push(lb);
+   	 	   		pointList.push(lu);
+   	 	   		pointList.push(ru);
+   	 	   		pointList.push(rb);
+   	 	   		pointList.push(lb);
+   	 	   		var linearRing = new OpenLayers.Geometry.LinearRing(pointList);
+   	 			var boundFeature = new OpenLayers.Feature.Vector(
+   	 		    	new OpenLayers.Geometry.Polygon([linearRing]).transform(map.displayProjection, map.projection),{}
+   	 			)
+   	 			console.log(boundFeature);
+   	 			boundLayer.addFeatures([boundFeature]);
+   	 			fullExtent=boundLayer.getDataExtent();
+   	 			map.zoomToExtent(fullExtent);
+   			}
+   			else{
+   	 			fullExtent=locationLayer.getDataExtent();
+   	 			map.zoomToExtent(fullExtent);
+   			}
+   		 	
+
+   		}
+
+	    $(document).ready(function(){
+	    	
+	        $('#address').keypress(function(event){
+	        	var content="";
+	        	var address = $('#address').val();
+	        	var zoom;
+	        	var boundArray=[];
+		       	 if(event.which==13){
+		       		 if (geocodeEngine=="google"){
+		       			geocoder.geocode( { 'address':address + ",us","region":"us" }, function(results, status) {
+		       				if (status == google.maps.GeocoderStatus.OK) {
+		       					console.log(results);
+		       					lat = results[0].geometry.location.Xa;
+		       					lon = results[0].geometry.location.Ya;
+		       					if (typeof(results[0].geometry.bounds)!="undefined"){
+			       					boundArray.push(results[0].geometry.bounds.ca.b);
+			       					boundArray.push(results[0].geometry.bounds.ca.f);
+			       					boundArray.push(results[0].geometry.bounds.ea.b);
+			       					boundArray.push(results[0].geometry.bounds.ea.f);
+		       					}
+		       					resultType=results[0].types[0];
+		       					if (typeof(gResultType[resultType])=="undefined"){
+		       						content+="google geocode result indicates something I don't ^%$&^$#@# understand!"
+		       					}
+		       					else{
+			       					content+="google geocode result " + gResultType[resultType][0];
+			       					zoom=gResultType[resultType][1];
+			       					showMapBoxImage(lon,lat,zoom);
+			       					showDynamicMap(lon,lat,boundArray);
+			       					$('#result').html(content);
+		       					}
+
+		       				} else {
+		       	  				alert("Google Goecoder %$#^&^% " + status);
+		       		 		}
+		       			});		       			
+		       		 }
+		       		 else if (geocodeEngine=="mapquest"){
+		       			 $.getJSON('http://open.mapquestapi.com/nominatim/v1/search?format=json&countrycodes=us&limit=1&q=' + address + "&callback=callback",
+		       		    		function(value){
+		       				    	 value = value[0];
+		       				         if (value === undefined) {
+		       				        	content+="mapquest geocode result indicates something I don't ^%$&^$#@# understand!"
+		       				         } 
+		       				         else {
+		       				        	lat=value.lat;
+		       				        	lon=value.lon;
+		       				        	resultType=value.type;
+		       				        	boundArray.push(parseFloat(value.boundingbox[0]));
+		       				        	boundArray.push(parseFloat(value.boundingbox[1]));
+		       				        	boundArray.push(parseFloat(value.boundingbox[2]));
+		       				        	boundArray.push(parseFloat(value.boundingbox[3]));
+
+
+		       				        	if (typeof(mResultType[resultType])=="undefined"){
+				       						content+="mapquest geocode result indicates something I don't ^%$&^$#@# understand!"
+				       					}
+		       				        	else{
+					       					content+="mapquest geocode result " + mResultType[resultType][0];
+					       					zoom=mResultType[resultType][1];
+					       					showMapBoxImage(lon,lat,zoom);
+					       					showDynamicMap(lon,lat,boundArray);
+		       				        	}       				        	
+		       				         }
+				       				$('#result').html(content);
+		       		    		});
+		       		 }
+		       		 
+		       		 
+		       	 }	       	
+	        })
+	        
+	        $("input[name='radio']").change(function() {
+	            if ($("input[name='radio']:checked").val() == 'google')
+	               geocodeEngine="google";
+	            else if ($("input[name='radio']:checked").val() == 'mapquest')
+	               geocodeEngine="mapquest";
+	        });
+
+	    })
+
+
+     </script>
+  </body>
+</html>
