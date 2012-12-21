@@ -10,6 +10,7 @@
     <p>Enter Address, geocode by
     	<INPUT TYPE=RADIO NAME="radio" VALUE="google" checked>Google
 		<INPUT TYPE=RADIO NAME="radio" VALUE="mapquest">Nominatim (via Mapquest)
+		<INPUT TYPE=RADIO NAME="radio" VALUE="mapbox">Mapbox
     </p>
     <div>
     <input id="address" type="text" style="width:500px"/> <h2><span id='result'>&nbsp;</span></h2>
@@ -255,6 +256,37 @@
 				       				$('#result').html(content);
 		       		    		});
 		       		 }
+		       		else if (geocodeEngine=="mapbox"){	       			
+		       			 $.getJSON('http://api.tiles.mapbox.com/v3/fcc/geocode/' + address + ".json",
+		       		    		function(value){
+
+		       				         if (value.results.length==0) {
+		       				        	content+="mapbox geocoder can't find this zipcode!"
+		       				         } 
+		       				         else {
+			       				    	result = value.results[0][0];
+			       				    	if (result.type != "zipcode"){
+			       				    		content+="mapbox geocoder can't find this zipcode!"
+			       				    	}
+			       				    	else{
+			       				    		lat=result.lat;
+			       				        	lon=result.lon;
+			       				        	resultType=result.type;
+			       				        	boundArray.push(parseFloat(result.bounds[1]));
+			       				        	boundArray.push(parseFloat(result.bounds[3]));
+			       				        	boundArray.push(parseFloat(result.bounds[0]));
+			       				        	boundArray.push(parseFloat(result.bounds[2]));
+
+						       				content+="mapbox geocode zipcode " + address;
+						       				zoom=12;
+						       				showMapBoxImage(lon,lat,zoom);
+						       				showDynamicMap(lon,lat,boundArray);      				        	
+			       				         }
+			       				    	}
+		       				        	
+				       				$('#result').html(content);
+		       		    		});
+		       		 }
 		       		 
 		       		 
 		       	 }	       	
@@ -265,10 +297,14 @@
 	               geocodeEngine="google";
 	            else if ($("input[name='radio']:checked").val() == 'mapquest')
 	               geocodeEngine="mapquest";
+	            else if ($("input[name='radio']:checked").val() == 'mapbox')
+		               geocodeEngine="mapbox";
 	        });
 
 	    })
-
+		       			function grid(data){
+		       				console.log(data);
+		       			}
 
      </script>
   </body>
