@@ -201,13 +201,13 @@
 		       			geocoder.geocode( { 'address':address + ",us","region":"us" }, function(results, status) {
 		       				if (status == google.maps.GeocoderStatus.OK) {
 		       					console.log(results);
-		       					lat = results[0].geometry.location.Xa;
-		       					lon = results[0].geometry.location.Ya;
+		       					lat = results[0].geometry.location.Ya;
+		       					lon = results[0].geometry.location.Za;
 		       					if (typeof(results[0].geometry.bounds)!="undefined"){
+			       					boundArray.push(results[0].geometry.bounds.Z.b);
+			       					boundArray.push(results[0].geometry.bounds.Z.d);
 			       					boundArray.push(results[0].geometry.bounds.ca.b);
-			       					boundArray.push(results[0].geometry.bounds.ca.f);
-			       					boundArray.push(results[0].geometry.bounds.ea.b);
-			       					boundArray.push(results[0].geometry.bounds.ea.f);
+			       					boundArray.push(results[0].geometry.bounds.ca.d);
 		       					}
 		       					resultType=results[0].types[0];
 		       					if (typeof(gResultType[resultType])=="undefined"){
@@ -241,6 +241,8 @@
 		       				        	boundArray.push(parseFloat(value.boundingbox[1]));
 		       				        	boundArray.push(parseFloat(value.boundingbox[2]));
 		       				        	boundArray.push(parseFloat(value.boundingbox[3]));
+		       				        	
+		       				        	console.log(boundArray);
 
 
 		       				        	if (typeof(mResultType[resultType])=="undefined"){
